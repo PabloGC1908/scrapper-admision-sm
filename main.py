@@ -1,79 +1,94 @@
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup, ResultSet
+import re
 
-session = requests.session()
-url = "https://admision.unmsm.edu.pe/WebsiteExa_20232/A.html"
+url_principal = 'https://admision.unmsm.edu.pe/WebsiteExa_20232/index.html'
 id_proceso = '2023-II'
+session = requests.session()
 
 
-def indexando_hrefs(items: ResultSet) -> list:
-    hrefs = []
+def indexando_hrefs_modalidades(items: ResultSet) -> list:
+    data = []
 
     for item in items:
-        href = str(item.find_next('a')['href'].replace('./A', ''))
-        hrefs.append(url.replace('.html', href))
+        data.append((url_principal.replace('index.html', item.find_next('a')['href']),
+                     item.find_next('a').text.encode('latin1').decode('utf-8')))
+
+    return data
+
+
+def indexando_hrefs_carreras(data_modalidad: tuple) -> list:
+    hrefs = []
+
+    request = requests.get(data_modalidad[0])
+    soup = BeautifulSoup(request.text, 'html.parser')
+    items = soup.find('tbody').find_all('tr')
+
+    for item in items:
+        href = str(item.find_next('a')['href'].replace('./', ''))
+        hrefs.append((re.sub("[ACDEFGHIMNO].html", href, data_modalidad[0]), data_modalidad[1]))
 
     return hrefs
 
 
-def data_postulantes(href: str) -> list[list[int | str | float | None]]:
+def data_postulantes(data_carrera:  tuple) -> list[list[int | str | float | None]]:
     data = []
 
-    request = requests.get(href)
+    request = requests.get(data_carrera[0])
     soup = BeautifulSoup(request.text, 'html.parser')
     items = soup.find('tbody').find_all('tr')
 
     for item in items:
         codigo = item.find_next('td')
-        nombre_postulante_data = codigo.find_next('td')
-        escuela_profesional_data = nombre_postulante_data.find_next('td')
-        puntaje_final_data = escuela_profesional_data.find_next('td')
-        merito_ep = puntaje_final_data.find_next('td')
-        ingreso = merito_ep.find_next('td')
+        nombre_postulante = codigo.find_next('td')
+        escuela_profesional = nombre_postulante.find_next('td')
+        puntaje_final = escuela_profesional.find_next('td')
+        merito = puntaje_final.find_next('td')
+        ingreso = merito.find_next('td')
 
-        nombre_postulante = nombre_postulante_data.text.encode('latin1').decode('utf-8')
-        escuela_profesional = escuela_profesional_data.text.encode('latin1').decode('utf-8')
-
-        if puntaje_final_data.text.isnumeric():
-            puntaje_final = float(puntaje_final_data.text)
-        else:
-            puntaje_final = 0.00
-
-        if merito_ep.text.isnumeric():
-            merito_ep = int(merito_ep.text)
-        else:
-            merito_ep = None
-
-        ingreso = ingreso.text.replace('\xa0', '')
-
-        data.append([int(codigo.text), nombre_postulante, escuela_profesional, puntaje_final, merito_ep, ingreso,
-                     id_proceso])
+        data.append(limpieza_data_postulante([codigo.text, nombre_postulante.text, escuela_profesional.text,
+                                              puntaje_final.text, merito.text, ingreso.text], data_carrera[1]))
 
     return data
 
 
-def data_a_csv(data: list):
+def limpieza_data_postulante(data_postulante: list, modalidad: str) -> list:
+    codigo = int(data_postulante[0])
+    nombre_postulante = data_postulante[1].encode('latin1').decode('utf-8')
+    escuela_profesional = data_postulante[2].encode('latin1').decode('utf-8')
+    puntaje_final = float(data_postulante[3]) if data_postulante[3].isnumeric() else 0.0
+    merito = int(data_postulante[4]) if data_postulante[4].isnumeric() else None
+    observacion = data_postulante[5].replace('\xa0', '')
+
+    return [codigo, nombre_postulante, escuela_profesional, puntaje_final, merito, observacion, id_proceso, modalidad]
+
+
+def data_a_csv(data: list, nombre_archivo: str):
     headers = ['Codigo', 'Apellidos y Nombres', 'Escuela Profesional', 'Puntaje Final', 'Merito', 'Observacion',
-               'Proceso']
+               'Proceso', 'Modalidad']
     data_df = pd.DataFrame(data, columns=headers)
 
-    data_df.to_csv('2023_II.csv', index=False, encoding='utf-8')
+    data_df.to_csv(nombre_archivo, index=False, encoding='utf-8')
+    print("Se completo la operacion de manera exitosa")
 
 
 def main():
-    request = requests.get(url)
+    request = requests.get(url_principal)
 
     soup = BeautifulSoup(request.text, 'html.parser')
-
     items = soup.find('tbody').find_all('td')
-    hrefs = indexando_hrefs(items)
+    hrefs_modalidades = indexando_hrefs_modalidades(items)
+    data_carreras = []
     data = []
 
-    for href in hrefs:
-        data = data + data_postulantes(href)
+    for href in hrefs_modalidades:
+        data_carreras = data_carreras + indexando_hrefs_carreras(href)
 
-    data_a_csv(data)
+    for dat in data_carreras:
+        data = data + data_postulantes(dat)
+
+    data_a_csv(data, '2023-II.csv')
 
 
 if __name__ == '__main__':
