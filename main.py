@@ -3,7 +3,7 @@ import requests
 from bs4 import BeautifulSoup, ResultSet
 import re
 
-url_principal = 'https://admision.unmsm.edu.pe/WebsiteExa_20232/index.html'
+url_principal = 'https://admision.unmsm.edu.pe/Website20241/index.html'
 id_proceso = '2023-II'
 session = requests.session()
 
@@ -88,7 +88,7 @@ def main():
     for dat in data_carreras:
         data = data + data_postulantes(dat)
 
-    data_a_csv(data, '2023-II.csv')
+    data_a_csv(data, '2024-I.csv')
 
 
 if __name__ == '__main__':
