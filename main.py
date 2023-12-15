@@ -32,7 +32,7 @@ def indexando_hrefs_carreras(data_modalidad: tuple) -> list:
     return hrefs
 
 
-def data_postulantes(data_carrera:  tuple) -> list[list[int | str | float | None]]:
+def data_postulantes(data_carrera: tuple) -> list[list[int | str | float | None]]:
     data = []
 
     request = requests.get(data_carrera[0])
@@ -45,10 +45,15 @@ def data_postulantes(data_carrera:  tuple) -> list[list[int | str | float | None
         escuela_profesional = nombre_postulante.find_next('td')
         puntaje_final = escuela_profesional.find_next('td')
         merito = puntaje_final.find_next('td')
-        ingreso = merito.find_next('td')
+        observacion = merito.find_next('td')
+        escuela_segunda_opcion = observacion.find_next('td')
 
-        data.append(limpieza_data_postulante([codigo.text, nombre_postulante.text, escuela_profesional.text,
-                                              puntaje_final.text, merito.text, ingreso.text], data_carrera[1]))
+        data.append(
+            limpieza_data_postulante(
+                [codigo.text, nombre_postulante.text, escuela_profesional.text, puntaje_final.text,
+                 merito.text, observacion.text, escuela_segunda_opcion.text],
+                data_carrera[1])
+        )
 
     return data
 
@@ -57,16 +62,18 @@ def limpieza_data_postulante(data_postulante: list, modalidad: str) -> list:
     codigo = int(data_postulante[0])
     nombre_postulante = data_postulante[1].encode('latin1').decode('utf-8')
     escuela_profesional = data_postulante[2].encode('latin1').decode('utf-8')
-    puntaje_final = float(data_postulante[3]) if data_postulante[3].isnumeric() else 0.0
+    puntaje_final = data_postulante[3]  # float(data_postulante[3]) if data_postulante[3].isnumeric() else 0.0
     merito = int(data_postulante[4]) if data_postulante[4].isnumeric() else None
     observacion = data_postulante[5].replace('\xa0', '')
+    escuela_segunda_opcion = data_postulante[6].replace('\xa0', '').encode('latin1').decode('utf-8')
 
-    return [codigo, nombre_postulante, escuela_profesional, puntaje_final, merito, observacion, id_proceso, modalidad]
+    return [codigo, nombre_postulante, escuela_profesional, puntaje_final, merito, observacion,
+            escuela_segunda_opcion, id_proceso, modalidad]
 
 
 def data_a_csv(data: list, nombre_archivo: str):
     headers = ['Codigo', 'Apellidos y Nombres', 'Escuela Profesional', 'Puntaje Final', 'Merito', 'Observacion',
-               'Proceso', 'Modalidad']
+               'Escuela Segunda Opcion', 'Proceso', 'Modalidad']
     data_df = pd.DataFrame(data, columns=headers)
 
     data_df.to_csv(nombre_archivo, index=False, encoding='utf-8')
