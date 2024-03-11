@@ -2,9 +2,14 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup, ResultSet
 import re
+import logging
 
-url_principal = 'https://admision.unmsm.edu.pe/Website20241/index.html'
-id_proceso = '2023-II'
+url_principal_2024_I = 'https://admision.unmsm.edu.pe/Website20241/index.html'
+url_principal_2024_II = 'https://admision.unmsm.edu.pe/Website20242/index.html'
+
+url_principal = url_principal_2024_II
+
+id_proceso = '2024-II'
 session = requests.session()
 
 
@@ -82,6 +87,7 @@ def data_a_csv(data: list, nombre_archivo: str):
 
 def main():
     request = requests.get(url_principal)
+    logging.warning("Empezando el script")
 
     soup = BeautifulSoup(request.text, 'html.parser')
     items = soup.find('tbody').find_all('td')
@@ -95,7 +101,7 @@ def main():
     for dat in data_carreras:
         data = data + data_postulantes(dat)
 
-    data_a_csv(data, '2024-I.csv')
+    data_a_csv(data, '2024-II.csv')
 
 
 if __name__ == '__main__':
