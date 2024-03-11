@@ -12,11 +12,19 @@ url_principal = url_principal_2024_II
 id_proceso = '2024-II'
 session = requests.session()
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+console_handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
 
 def indexando_hrefs_modalidades(items: ResultSet) -> list:
     data = []
 
     for item in items:
+        logger.info(f"Registrando datos de {item.text}")
         data.append((url_principal.replace('index.html', item.find_next('a')['href']),
                      item.find_next('a').text.encode('latin1').decode('utf-8')))
 
@@ -87,7 +95,7 @@ def data_a_csv(data: list, nombre_archivo: str):
 
 def main():
     request = requests.get(url_principal)
-    logging.warning("Empezando el script")
+    logger.info("Empezando el script")
 
     soup = BeautifulSoup(request.text, 'html.parser')
     items = soup.find('tbody').find_all('td')
@@ -96,6 +104,7 @@ def main():
     data = []
 
     for href in hrefs_modalidades:
+        logger.info(f"Registrando carreras de modalidad: {href[1]}")
         data_carreras = data_carreras + indexando_hrefs_carreras(href)
 
     for dat in data_carreras:
