@@ -40,7 +40,8 @@ def indexando_hrefs_carreras(data_modalidad: tuple) -> list:
 
     for item in items:
         href = str(item.find_next('a')['href'].replace('./', ''))
-        hrefs.append((re.sub("[ACDEFGHIMNO].html", href, data_modalidad[0]), data_modalidad[1]))
+        logger.info(f"Indexando carrera: {href}")
+        hrefs.append((re.sub("[ACDEFGHIJMNO].html", href, data_modalidad[0]), data_modalidad[1]))
 
     return hrefs
 
@@ -79,6 +80,7 @@ def limpieza_data_postulante(data_postulante: list, modalidad: str) -> list:
     merito = int(data_postulante[4]) if data_postulante[4].isnumeric() else None
     observacion = data_postulante[5].replace('\xa0', '')
     escuela_segunda_opcion = data_postulante[6].replace('\xa0', '').encode('latin1').decode('utf-8')
+    logger.info(f"Alumno: {[codigo, nombre_postulante, escuela_profesional, puntaje_final, merito, observacion, escuela_segunda_opcion, id_proceso, modalidad]}")
 
     return [codigo, nombre_postulante, escuela_profesional, puntaje_final, merito, observacion,
             escuela_segunda_opcion, id_proceso, modalidad]
@@ -90,7 +92,7 @@ def data_a_csv(data: list, nombre_archivo: str):
     data_df = pd.DataFrame(data, columns=headers)
 
     data_df.to_csv(nombre_archivo, index=False, encoding='utf-8')
-    print("Se completo la operacion de manera exitosa")
+    logger.info(f"Se registraron los datos en el archivo {nombre_archivo}")
 
 
 def main():
