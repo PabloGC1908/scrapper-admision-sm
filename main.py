@@ -41,7 +41,7 @@ def indexando_hrefs_carreras(data_modalidad: tuple) -> list:
     for item in items:
         href = str(item.find_next('a')['href'].replace('./', ''))
         logger.info(f"Indexando carrera: {href}")
-        hrefs.append((re.sub("[ACDEFGHIJMNO].html", href, data_modalidad[0]), data_modalidad[1]))
+        hrefs.append((re.sub("[A-Z].html", href, data_modalidad[0]), data_modalidad[1]))
 
     return hrefs
 
@@ -64,8 +64,7 @@ def data_postulantes(data_carrera: tuple) -> list[list[int | str | float | None]
 
         data.append(
             limpieza_data_postulante(
-                [codigo.text, nombre_postulante.text, escuela_profesional.text, puntaje_final.text,
-                 merito.text, observacion.text, escuela_segunda_opcion.text],
+                [codigo.text, nombre_postulante.text, escuela_profesional.text, puntaje_final.text, merito.text, observacion.text, escuela_segunda_opcion.text],
                 data_carrera[1])
         )
 
@@ -76,14 +75,24 @@ def limpieza_data_postulante(data_postulante: list, modalidad: str) -> list:
     codigo = int(data_postulante[0])
     nombre_postulante = data_postulante[1].encode('latin1').decode('utf-8')
     escuela_profesional = data_postulante[2].encode('latin1').decode('utf-8')
-    puntaje_final = data_postulante[3]  # float(data_postulante[3]) if data_postulante[3].isnumeric() else 0.0
+    puntaje_final = limpiar_puntaje_final(data_postulante[3])
     merito = int(data_postulante[4]) if data_postulante[4].isnumeric() else None
-    observacion = data_postulante[5].replace('\xa0', '')
+    observacion = data_postulante[5].replace('\xa0', '').encode('latin1').decode('utf-8')
     escuela_segunda_opcion = data_postulante[6].replace('\xa0', '').encode('latin1').decode('utf-8')
     logger.info(f"Alumno: {[codigo, nombre_postulante, escuela_profesional, puntaje_final, merito, observacion, escuela_segunda_opcion, id_proceso, modalidad]}")
 
-    return [codigo, nombre_postulante, escuela_profesional, puntaje_final, merito, observacion,
-            escuela_segunda_opcion, id_proceso, modalidad]
+    return [codigo, nombre_postulante, escuela_profesional, puntaje_final, merito, observacion, escuela_segunda_opcion, id_proceso, modalidad]
+
+
+def limpiar_puntaje_final(data: str):
+    logger.info(data)
+    if '\xa0' in data:
+        return data.replace('\xa0', '')
+
+    if 'Art' in data:
+        return data.encode(encoding='utf-8', errors='ignore').decode('utf-8')
+
+    return float(data)
 
 
 def data_a_csv(data: list, nombre_archivo: str):
