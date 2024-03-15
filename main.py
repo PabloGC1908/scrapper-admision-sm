@@ -85,7 +85,6 @@ def limpieza_data_postulante(data_postulante: list, modalidad: str) -> list:
 
 
 def limpiar_puntaje_final(data: str):
-    logger.info(data)
     if '\xa0' in data:
         return data.replace('\xa0', '')
 
