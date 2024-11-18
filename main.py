@@ -1,16 +1,17 @@
+import logging
+
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup, ResultSet
-import re
-import logging
 
 url_principal_2024_I = 'https://admision.unmsm.edu.pe/Website20241/index.html'
 url_principal_2024_II = 'https://admision.unmsm.edu.pe/Website20242/index.html'
 url_principal_simulacro_2025_I = 'https://admision.unmsm.edu.pe/WebsiteSimulacro20251/index.html'
+url_principal_2025_I = 'https://admision.unmsm.edu.pe/Website20251/index.html'
 
-url_principal = url_principal_simulacro_2025_I
+url_principal = url_principal_2025_I
 
-id_proceso = 'S-2025-I'
+id_proceso = '2025-I'
 session = requests.session()
 
 logger = logging.getLogger(__name__)
@@ -62,19 +63,18 @@ def data_postulantes(data_carrera: tuple) -> list[list[int | str | float | None]
     request = requests.get(data_carrera[0])
     soup = BeautifulSoup(request.text, 'html.parser')
 
-    items = soup.find('tbody').find_all('td')
+    items = soup.find('tbody').find_all('tr')
 
-    for i in range(0, len(items), 7):
-        sede = items[i].text.strip()
-        codigo = items[i + 1].text.strip()
-        nombre_postulante = items[i + 2].text.strip()
-        escuela_profesional = items[i + 3].text.strip()
-        puntaje_final = items[i + 4].text.strip()
-        merito = items[i + 5].text.strip()
-        observacion = items[i + 6].text.strip()
+    for item in items:
+        print(item.text)
+        codigo = item.find_next('td')
+        nombre_postulante = codigo.find_next('td')
+        escuela_profesional = nombre_postulante.find_next('td')
+        puntaje_final = escuela_profesional.find_next('td')
+        merito = puntaje_final.find_next('td')
+        observacion = merito.find_next('td')
 
         datos_postulante = [
-            sede,
             codigo,
             nombre_postulante,
             escuela_profesional,
@@ -85,38 +85,48 @@ def data_postulantes(data_carrera: tuple) -> list[list[int | str | float | None]
 
         logger.info(f"Datos postulante: {datos_postulante}")
 
-        data.append(
-            limpieza_data_postulante(datos_postulante, data_carrera[1])
-        )
+        data.append(limpieza_data_postulante(datos_postulante, data_carrera[1]))
 
     return data
 
 
 def limpieza_data_postulante(data_postulante: list, modalidad: str) -> list:
-    sede = data_postulante[0].replace('\xa0', '').encode('latin1').decode('utf-8')
-    codigo = int(data_postulante[1])
-    nombre_postulante = data_postulante[2].encode('latin1').decode('utf-8')
-    escuela_profesional = data_postulante[3].encode('latin1').decode('utf-8')
-    puntaje_final = limpiar_puntaje_final(data_postulante[4])
-    merito = int(data_postulante[5]) if data_postulante[5].isnumeric() else None
-    observacion = data_postulante[6].replace('\xa0', '').encode('latin1').decode('utf-8')
-    logger.info(f"Alumno limpiado: {[codigo, nombre_postulante, escuela_profesional, puntaje_final, merito, observacion, id_proceso, modalidad]}")
+    codigo = data_postulante[0].text.strip() if data_postulante[0] else None
+    nombre_postulante = (data_postulante[1].text.strip().encode('latin1').decode('utf-8')
+                         if data_postulante[1] else None)
+    escuela_profesional = (data_postulante[2].text.strip().encode('latin1').decode('utf-8')
+                           if data_postulante[2] else None)
+    puntaje_final = limpiar_puntaje_final(data_postulante[3])
+    merito = (int(data_postulante[4].text.strip())
+              if data_postulante[4] and data_postulante[4].text.strip().isnumeric()
+              else None)
+    observacion = (data_postulante[5].text.strip().encode('latin1').decode('utf-8')
+                   if data_postulante[5] else None)
 
-    return [sede, codigo, nombre_postulante, escuela_profesional, puntaje_final, merito, observacion, id_proceso, modalidad]
+    logger.info(f"Alumno limpiado: {[codigo, nombre_postulante, escuela_profesional, puntaje_final, merito, observacion, modalidad]}")
+
+    return [codigo, nombre_postulante, escuela_profesional, puntaje_final, merito, observacion, id_proceso, modalidad]
 
 
-def limpiar_puntaje_final(data: str):
-    if '\xa0' in data:
-        return data.replace('\xa0', '')
+def limpiar_puntaje_final(data):
+    logger.debug(f"Tipo del dato: {type(data)}")
+    logger.debug(f"Valor de puntaje final antes de limpiar: {data.text}")
 
-    if 'Art' in data:
-        return data.encode(encoding='utf-8', errors='ignore').decode('utf-8')
+    if not data:
+        return None
 
-    return data
+    if isinstance(data, str):
+        return data.replace('\xa0', '').strip()
+
+    if hasattr(data, 'text'):
+        data_text = data.text.strip()
+        return data_text.replace('\xa0', '') if data_text else None
+
+    return None
 
 
 def data_a_csv(data: list, nombre_archivo: str):
-    headers = ['Sede', 'Codigo', 'Apellidos y Nombres', 'Escuela Profesional', 'Puntaje Final', 'Merito', 'Observacion', 'Proceso', 'Modalidad']
+    headers = ['Codigo', 'Apellidos y Nombres', 'Escuela Profesional', 'Puntaje Final', 'Merito', 'Observacion', 'Proceso', 'Modalidad']
     data_df = pd.DataFrame(data, columns=headers)
 
     data_df.to_csv(nombre_archivo, index=False, encoding='utf-8')
@@ -142,7 +152,7 @@ def main():
     for dat in data_carreras:
         data = data + data_postulantes(dat)
 
-    data_a_csv(data, 'S-2025-I.csv')
+    data_a_csv(data, '2025-I.csv')
 
 
 if __name__ == '__main__':
