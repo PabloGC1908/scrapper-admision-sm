@@ -1,3 +1,4 @@
+import base64
 import logging
 
 import pandas as pd
@@ -10,11 +11,11 @@ url_principal_simulacro_2025_I = 'https://admision.unmsm.edu.pe/WebsiteSimulacro
 url_principal_2025_I = 'https://admision.unmsm.edu.pe/Website20251/index.html'
 url_principal_2025_II_A = 'https://admision.unmsm.edu.pe/Website20252GeneralA/index.html'
 url_principal_2025_II = 'https://admision.unmsm.edu.pe/Website20252General/index.html'
-url_principal_simulacro_2026_I = 'https://admision.unmsm.edu.pe/Website20261/index.html'
+url_principal_2026_I = 'https://admision.unmsm.edu.pe/Website20261/index.html'
 
-url_principal = url_principal_2025_II
+url_principal = url_principal_2026_I
 
-id_proceso = '2025-II_2'
+id_proceso = '2026-I'
 session = requests.session()
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,31 @@ def indexando_hrefs_modalidades(items: ResultSet) -> list:
     logger.info(f"Data registrada: {data}")
 
     return data
+
+
+def decode_field(tag):
+    """Devuelve el texto real de una celda, decodificando Base64 si es necesario."""
+    if not tag:
+        return None
+
+    # Buscar span con clase 'obfuscated'
+    span = tag.find('span', class_='obfuscated')
+    if span and span.has_attr('data-auth'):
+        try:
+            decoded = base64.b64decode(span['data-auth']).decode('utf-8').strip()
+            return decoded
+        except Exception as e:
+            logger.warning(f"Error decodificando Base64 en {span}: {e}")
+            return None
+
+    # Si no está ofuscado, leer texto normal
+    text = tag.text.strip()
+    if not text:
+        return None
+    try:
+        return text.encode('latin1').decode('utf-8', errors='ignore')
+    except:
+        return text
 
 
 def indexando_hrefs_carreras(data_modalidad: tuple) -> list:
@@ -94,17 +120,31 @@ def data_postulantes(data_carrera: tuple) -> list[list[int | str | float | None]
 
 
 def limpieza_data_postulante(data_postulante: list, modalidad: str) -> list:
-    codigo = data_postulante[0].text.strip() if data_postulante[0] else None
-    nombre_postulante = (data_postulante[1].text.strip().encode('latin1').decode('utf-8')
-                         if data_postulante[1] else None)
-    escuela_profesional = (data_postulante[2].text.strip().encode('latin1').decode('utf-8')
-                           if data_postulante[2] else None)
-    puntaje_final = limpiar_puntaje_final(data_postulante[3])
-    merito = (int(data_postulante[4].text.strip())
-              if data_postulante[4] and data_postulante[4].text.strip().isnumeric()
-              else None)
-    observacion = (data_postulante[5].text.strip().encode('latin1').decode('utf-8')
-                   if data_postulante[5] else None)
+    codigo = decode_field(data_postulante[0])
+    nombre_postulante = decode_field(data_postulante[1])
+    escuela_profesional = decode_field(data_postulante[2])
+
+    puntaje_final = decode_field(data_postulante[3])
+    merito = decode_field(data_postulante[4])
+    observacion = decode_field(data_postulante[5])
+
+    # Leer los atributos si existen (más confiable que el texto)
+    if not puntaje_final and data_postulante[3].has_attr('data-score'):
+        puntaje_final = data_postulante[3]['data-score']
+
+    if not merito and data_postulante[4].has_attr('data-merit'):
+        merito = data_postulante[4]['data-merit']
+
+    # Convertir tipos
+    try:
+        puntaje_final = float(puntaje_final) if puntaje_final else None
+    except:
+        puntaje_final = None
+
+    try:
+        merito = int(merito) if merito and merito.isnumeric() else None
+    except:
+        merito = None
 
     logger.info(f"Alumno limpiado: {[codigo, nombre_postulante, escuela_profesional, puntaje_final, merito, observacion, modalidad]}")
 
@@ -129,7 +169,8 @@ def limpiar_puntaje_final(data):
 
 
 def data_a_csv(data: list, nombre_archivo: str):
-    headers = ['Codigo', 'Apellidos y Nombres', 'Escuela Profesional', 'Puntaje Final', 'Merito', 'Observacion', 'Proceso', 'Modalidad']
+    headers = ['Codigo', 'Apellidos y Nombres', 'Escuela Profesional', 'Puntaje Final', 'Merito', 'Observacion',
+               'Proceso', 'Modalidad']
     data_df = pd.DataFrame(data, columns=headers)
 
     data_df.to_csv(nombre_archivo, index=False, encoding='utf-8')
