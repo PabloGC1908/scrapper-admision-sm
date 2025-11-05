@@ -8,10 +8,13 @@ url_principal_2024_I = 'https://admision.unmsm.edu.pe/Website20241/index.html'
 url_principal_2024_II = 'https://admision.unmsm.edu.pe/Website20242/index.html'
 url_principal_simulacro_2025_I = 'https://admision.unmsm.edu.pe/WebsiteSimulacro20251/index.html'
 url_principal_2025_I = 'https://admision.unmsm.edu.pe/Website20251/index.html'
+url_principal_2025_II_A = 'https://admision.unmsm.edu.pe/Website20252GeneralA/index.html'
+url_principal_2025_II = 'https://admision.unmsm.edu.pe/Website20252General/index.html'
+url_principal_simulacro_2026_I = 'https://admision.unmsm.edu.pe/Website20261/index.html'
 
-url_principal = url_principal_2025_I
+url_principal = url_principal_2025_II
 
-id_proceso = '2025-I'
+id_proceso = '2025-II_2'
 session = requests.session()
 
 logger = logging.getLogger(__name__)
@@ -152,7 +155,7 @@ def main():
     for dat in data_carreras:
         data = data + data_postulantes(dat)
 
-    data_a_csv(data, '2025-I.csv')
+    data_a_csv(data, f'{id_proceso}.csv')
 
 
 if __name__ == '__main__':
